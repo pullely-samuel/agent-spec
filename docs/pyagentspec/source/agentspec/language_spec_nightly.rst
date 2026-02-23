@@ -536,10 +536,41 @@ We define a new Component called LlmConfig that contains all the details:
 
    class LlmConfig(Component):
      default_generation_parameters: Optional[Dict[str, Any]]
+     retry_policy: Optional[RetryPolicy]
 
 We require only to specify the default generation parameters that should be used by default when prompting the LLM.
 These parameters are specified as a dictionary of parameter names and respective values.
 The names are strings, while values can be of any type compatible with the JSON schema standard.
+
+Retry Policy
+^^^^^^^^^^^^
+
+Optionally, users can provide a retry policy configuration for remote LLM calls.
+This policy is provider-agnostic and can be interpreted by runtimes to implement
+consistent retry behavior across different LLM providers.
+
+.. code-block:: python
+   class RetryPolicy:
+     max_attempts: int = 2
+     request_timeout: Optional[float] = None
+     initial_retry_delay: float = 1.0
+     max_retry_delay: float = 8.0
+     backoff_factor: float = 2.0
+     jitter: Optional[Literal["equal", "full", "full_and_equal_for_throttle", "decorrelated"]] = "full_and_equal_for_throttle"
+     service_error_retry_on_any_5xx: bool = True
+     recoverable_statuses: Dict[str, List[str]] = {
+       "409": [],
+       "429": [],
+     }
+
+The ``recoverable_statuses`` field is represented as a dictionary with **string** keys
+(e.g. ``"429"``) because Agent Spec configurations must be valid JSON, and JSON
+object keys are always strings.
+
+.. note::
+    Runtimes MUST NOT treat TLS/certificate verification errors as retryable.
+    Runtimes SHOULD NOT retry on authentication/authorization errors (e.g., HTTP 401/403)
+    or validation errors (e.g., HTTP 400/422).
 
 .. note::
 
@@ -850,6 +881,7 @@ the correct built-in tool.
      query_params: Dict[str, Any]
      headers: Dict[str, Any]
      sensitive_headers: SensitiveField[Dict[str, Any]]
+     retry_policy: Optional[RetryPolicy]
 
    class MCPTool(Tool):
      client_transport: ClientTransport
@@ -902,6 +934,11 @@ Like other tools, MCP Tools define inputs, outputs, and metadata but include a
 ``client_transport`` for managing connections (e.g., via SSE or Streamable HTTP
 with mTLS) (details about the client transport can be found in
 :ref:`the MCP section <agentspecmcpspec_nightly>` below).
+
+.. note::
+
+    MCP remote transports currently do not define a ``retry_policy`` attribute.
+    Retry configuration for MCP calls is runtime-specific.
 
 .. code-block:: python
 
@@ -1539,6 +1576,11 @@ A more detailed description of each node follows.
               - object[str, any]
               - No
               - {}
+            * - retry_policy
+              - Optional retry policy configuration applied to this API call.
+              - RetryPolicy | null
+              - No
+              - null
 
       - Inferred from the json spec retrieved from API Spec URI, if available and reachable.
         Empty otherwise (users will have to manually specify them)
@@ -2756,7 +2798,7 @@ We put here the current JSON spec of the Agent Spec language.
 
 .. collapse:: JSON Schema
 
-    .. literalinclude:: json_spec/agentspec_json_spec_25_4_2.json
+    .. literalinclude:: json_spec/agentspec_json_spec_26_2_0.json
         :language: json
 
 Note about serialization of components

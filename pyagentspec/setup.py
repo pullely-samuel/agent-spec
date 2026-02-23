@@ -29,6 +29,7 @@ LANGGRAPH_DEPS = [
     # 3rd party dependencies (imported in code)
     "langgraph>=1.0.5",
     "langchain>=1.2.0",
+    "langchain-core>=1.2.7",
     "langchain-openai>=1.1.7",
     "langchain-ollama>=1.0.1",
     "anyio>=4.10.0,<4.12.0",
@@ -70,8 +71,8 @@ setup(
         "pydantic>=2.10,<2.13",
         "pyyaml>=6,<7",
         "httpx>0.28.0",
-        "urllib3>=2.5.0",  # needed to avoid a CVE present on earlier versions
         # 4rth party dependencies
+        "urllib3>=2.6.3",  # needed to avoid a CVE present on earlier versions
     ],
     test_suite="tests",
     entry_points={
